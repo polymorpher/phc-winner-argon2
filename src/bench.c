@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
 #ifdef _WIN32
 #include <intrin.h>
 #endif
@@ -60,6 +61,7 @@ static void benchmark() {
 #undef BENCH_OUTLEN
 
     uint32_t t_cost = 1;
+    uint32_t ntimes = 1000000;
     uint32_t m_cost;
     uint32_t thread_test[1] = {1};
     argon2_type types[3] = {Argon2_i, Argon2_d, Argon2_id};
@@ -67,9 +69,9 @@ static void benchmark() {
     memset(pwd_array, 0, inlen);
     memset(salt_array, 1, inlen);
 
-    for (m_cost = (uint32_t)1 << 3; m_cost <= (uint32_t)1 << 3; m_cost *= 2) {
+    for (m_cost = (uint32_t) 1 << 3; m_cost <= (uint32_t) 1 << 3; m_cost *= 2) {
         unsigned i;
-        for (i = 0; i < 4; ++i) {
+        for (i = 0; i < 1; ++i) {
 
             uint32_t thread_n = thread_test[i];
 
@@ -85,10 +87,14 @@ static void benchmark() {
                 start_time = clock();
                 start_cycles = rdtsc();
                 unsigned k;
-                for (k = 0; k < 100000; k++){
-                    argon2_hash(t_cost, m_cost, thread_n, pwd_array, inlen,
-                                salt_array, inlen, out, outlen, NULL, 0, type,
-                                ARGON2_VERSION_NUMBER);
+                for (k = 0; k < ntimes; k++) {
+                    int r = argon2_hash(t_cost, m_cost, thread_n, pwd_array, inlen,
+                                        salt_array, inlen, out, outlen, NULL, 0, type,
+                                        ARGON2_VERSION_NUMBER);
+                    if (r != ARGON2_OK) {
+                        printf("i=%d error: %d\n", i, r);
+                        exit(r);
+                    }
                 }
 
 
@@ -96,12 +102,12 @@ static void benchmark() {
                 stop_time = clock();
 
                 delta = (stop_cycles - start_cycles) / (m_cost);
-                mcycles = (double)(stop_cycles - start_cycles) / (1UL << 20);
-                run_time += ((double)stop_time - start_time) / (CLOCKS_PER_SEC);
+                mcycles = (double) (stop_cycles - start_cycles) / (1UL << 20);
+                run_time += ((double) stop_time - start_time) / (CLOCKS_PER_SEC);
 
-                printf("100000 %s %d iterations  %d KiB %d threads:  %2.2f cpb %2.2f "
-                       "Mcycles \n", argon2_type2string(type, 1), t_cost,
-                       m_cost, thread_n, (float)delta / 1024, mcycles);
+                printf("%d times %s, %d iterations, %d KiB, %d threads:  %2.2f cpb %2.2f "
+                       "Mcycles \n", ntimes, argon2_type2string(type, 1), t_cost,
+                       m_cost, thread_n, (float) delta / 1024, mcycles);
 
                 printf("%2.4f seconds\n\n", run_time);
             }
